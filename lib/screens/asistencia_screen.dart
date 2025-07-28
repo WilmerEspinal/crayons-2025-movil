@@ -22,7 +22,7 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
 
   Future<List<Asistencia>> fetchAsistencias(String token) async {
     final response = await http.get(
-      Uri.parse('http://10.0.2.2:3000/api/alumno/mi-asistencia'),
+      Uri.parse('http://10.0.2.2:3000/api/asistencia/faltas-justificar'),
       headers: {
         'Authorization': 'Bearer $token',
         'Content-Type': 'application/json',
@@ -31,6 +31,16 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
     if (response.statusCode == 200) {
       final data = json.decode(response.body);
       final List asistenciasJson = data['data'];
+      
+      // Debug: imprimir los datos de la primera asistencia
+      if (asistenciasJson.isNotEmpty) {
+        print('=== DEBUG ASISTENCIA ===');
+        print('Primera asistencia: ${asistenciasJson[0]}');
+        print('nombre_docente: ${asistenciasJson[0]['nombre_docente']}');
+        print('nombre_completo_docente: ${asistenciasJson[0]['nombre_completo_docente']}');
+        print('=======================');
+      }
+      
       return asistenciasJson.map((json) => Asistencia.fromJson(json)).toList();
     } else {
       throw Exception('Error al cargar asistencias');
@@ -55,10 +65,13 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
           }
 
           final asistencias = snapshot.data!;
-          final asistenciasPresentes = asistencias.where((a) => a.presente).length;
-          final asistenciasFaltas = asistencias.where((a) => !a.presente).length;
+          final asistenciasPresentes =
+              asistencias.where((a) => a.presente).length;
+          final asistenciasFaltas =
+              asistencias.where((a) => !a.presente).length;
           final porcentaje = asistencias.isNotEmpty
-              ? ((asistenciasPresentes / asistencias.length) * 100).toStringAsFixed(1)
+              ? ((asistenciasPresentes / asistencias.length) * 100)
+                  .toStringAsFixed(1)
               : '0.0';
 
           return Column(
@@ -97,13 +110,10 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                       margin: const EdgeInsets.only(bottom: 16),
                       child: ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: asistencia.presente
-                              ? Colors.green
-                              : Colors.red,
+                          backgroundColor:
+                              asistencia.presente ? Colors.green : Colors.red,
                           child: Icon(
-                            asistencia.presente
-                                ? Icons.check
-                                : Icons.close,
+                            asistencia.presente ? Icons.check : Icons.close,
                             color: Colors.white,
                           ),
                         ),
@@ -113,12 +123,17 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
                         ),
                         trailing: asistencia.presente
                             ? null
-                            : TextButton(
-                                onPressed: () => _mostrarJustificacion(
-                                  context,
-                                  asistencia,
-                                ),
-                                child: const Text('Ver Justificación'),
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  TextButton(
+                                    onPressed: () => _mostrarJustificacion(
+                                      context,
+                                      asistencia,
+                                    ),
+                                    child: const Text('Ver Justificación'),
+                                  ),
+                                ],
                               ),
                       ),
                     );
@@ -188,6 +203,28 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
           ],
         ),
         actions: [
+                      TextButton(
+              onPressed: () {
+                // Debug: imprimir los datos de la asistencia seleccionada
+                print('=== ASISTENCIA SELECCIONADA ===');
+                print('ID: ${asistencia.id}');
+                print('Curso: ${asistencia.curso}');
+                print('ID Docente Curso: ${asistencia.idDocenteCurso}');
+                print('Nombre Docente: ${asistencia.nombreDocente}');
+                print('Nombre Completo: ${asistencia.nombreCompletoDocente}');
+                print('==============================');
+                
+                Navigator.pushNamed(
+                  context,
+                  '/justificar-falta',
+                  arguments: {
+                    'asistencia': asistencia,
+                    'token': widget.token,
+                  },
+                );
+              },
+              child: const Text('Justificar mi falta'),
+            ),
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cerrar'),
@@ -196,4 +233,4 @@ class _AsistenciaScreenState extends State<AsistenciaScreen> {
       ),
     );
   }
-} 
+}

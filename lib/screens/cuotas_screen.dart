@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+// ignore: depend_on_referenced_packages
+import 'package:url_launcher/url_launcher.dart';
 import '../models/cuota.dart';
 import '../services/cuota_service.dart';
+import 'pago_webview_screen.dart';
 
 class CuotasScreen extends StatefulWidget {
   final String token;
@@ -182,6 +187,42 @@ class _CuotasScreenState extends State<CuotasScreen> {
     }
   }
 
+  Future<void> _pagarCuota(int cuotaNum) async {
+    final url = Uri.parse('http://10.0.2.2:3000/api/pago/mercadopago/cuota');
+    final response = await http.post(
+      url,
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ${widget.token}',
+      },
+      body: jsonEncode({
+        'anio': '2025',
+        'tipo_cuota': cuotaNum.toString(),
+      }),
+    );
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body);
+      if (data['success'] == true && data['init_point'] != null) {
+        final initPoint = data['init_point'];
+        if (await canLaunchUrl(Uri.parse(initPoint))) {
+          await launchUrl(Uri.parse(initPoint), mode: LaunchMode.externalApplication);
+        } else {
+          _mostrarError('No se pudo abrir el navegador.');
+        }
+      } else {
+        _mostrarError('No se pudo obtener el enlace de pago.');
+      }
+    } else {
+      _mostrarError('Error al procesar el pago.');
+    }
+  }
+
+  void _mostrarError(String mensaje) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(mensaje), backgroundColor: Colors.red),
+    );
+  }
+
   void _mostrarDialogoPago(BuildContext context, int cuotaNum, String monto) {
     showDialog(
       context: context,
@@ -209,12 +250,7 @@ class _CuotasScreenState extends State<CuotasScreen> {
           ElevatedButton(
             onPressed: () {
               Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Pago procesado correctamente (simulado)'),
-                  backgroundColor: Colors.green,
-                ),
-              );
+              _pagarCuota(cuotaNum);
             },
             child: const Text('Confirmar Pago'),
           ),
@@ -222,4 +258,4 @@ class _CuotasScreenState extends State<CuotasScreen> {
       ),
     );
   }
-} 
+}
